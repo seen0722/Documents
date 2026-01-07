@@ -158,3 +158,79 @@ This section provides the verbatim code changes (diffs) implemented to achieve t
 -            activityFlags = SCREEN_ORIENTATION_NOSENSOR;
 +            activityFlags = SCREEN_ORIENTATION_LANDSCAPE;
 ```
+
+#### Launcher3 Recents (Overview Thumbnails)
+**Patch:** `packages/apps/Launcher3/0002-BUG-FIX-BSP-Display-Rotation-Fix-issues-about-the-or.patch`
+```java
+--- a/quickstep/src/com/android/quickstep/util/RecentsOrientedState.java
++++ b/quickstep/src/com/android/quickstep/util/RecentsOrientedState.java
+-    private @SurfaceRotation int mRecentsActivityRotation = ROTATION_0;
++    private @SurfaceRotation int mRecentsActivityRotation = ROTATION_90;
+     // ...
+-            return ROTATION_0;
++            return ROTATION_90;
+```
+
+#### Framework (Allow All Rotations)
+**Patch:** `frameworks/base/0003-BUG-FIX-BSP-Display-Rotation-Fix-the-issue-that-auto.patch`
+```xml
+--- a/core/res/res/values/config.xml
++++ b/core/res/res/values/config.xml
+-    <bool name="config_allowAllRotations">false</bool>
++    <bool name="config_allowAllRotations">true</bool>
+```
+
+#### GMS Setup Wizard (SUW)
+**Patch:** `vendor/partner_gms/0001-Update-BSP-Display-Rotation-Fixed-display-flipping-i.patch`
+```makefile
+--- a/products/gms.mk
++++ b/products/gms.mk
+-    ro.setupwizard.rotation_locked=true \
++    ro.setupwizard.rotation_locked=false \
+```
+
+### 8.4 Application-Level Fixes
+#### SnapdragonCamera (Icon Rotation Compensation)
+**Patch:** `vendor/codeaurora/packages/apps/SnapdragonCamera/0001-UPDATE-AP-DISPLAY-Rotation-Rotate-90-degree-for-came.patch`
+```java
+--- a/src/com/android/camera/CameraActivity.java
++++ b/src/com/android/camera/CameraActivity.java
++            // thorpe: due to ARCore patch, compensate orientation by 90 degrees
++            orientation = (orientation + 90) % 360;
+// ...
+--- a/src/com/android/camera/util/CameraUtil.java
++++ b/src/com/android/camera/util/CameraUtil.java
++            // thorpe: due to ARCore patch, minus 90 for JPEG rotation
++            orientation = (orientation - 90) % 360;
+```
+
+#### SnapdragonCamera (Landscape Lock)
+**Patch:** `vendor/codeaurora/packages/apps/SnapdragonCamera/0002-UPDATE-AP-DISPLAY-Rotation-Rotate-90-degree-for-came.patch`
+```xml
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+-            android:screenOrientation="unspecified"
++            android:screenOrientation="landscape"
+```
+```java
+--- a/src/com/android/camera/CameraActivity.java
++++ b/src/com/android/camera/CameraActivity.java
++        Log.d(TAG, "Set orientation default to landscape.");
++        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+```
+
+### 8.5 Sensor Calibration Fine-Tuning
+#### E-Compass Correction Matrix
+**Patch:** `vendor/qcom/proprietary/0004-UPDATE-BSP-E-COMPASS-fine-tune-ist8306-E-compass-cor.patch`
+```json
+--- a/sensors-see/registry/config/lahaina/kodiak_idp_ist8306_0.json
++++ b/sensors-see/registry/config/lahaina/kodiak_idp_ist8306_0.json
+     ".corr_mat":{
+-          "0_0":{ "data": "0.93875351" },
++          "0_0":{ "data": "1.006126579" },
+          // ... (full matrix recalibrated for rotated orientation)
+     }
+```
+
+## 9. Conclusion
+By re-aligning the architecture to follow the **"Portrait Baseline + Landscape Default"** pattern, we successfully resolved the ARCore 90-degree rotation issue while preserving the product's landscape identity. This ensures full compatibility with the Android ecosystem and future ARCore updates.

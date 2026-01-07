@@ -158,3 +158,79 @@ ARCore 應用程式在相機預覽與空間追蹤演算法中出現了持續性�
 -            activityFlags = SCREEN_ORIENTATION_NOSENSOR;
 +            activityFlags = SCREEN_ORIENTATION_LANDSCAPE;
 ```
+
+#### Launcher3 最近使用程式 (縮圖方向修正)
+**Patch:** `packages/apps/Launcher3/0002-BUG-FIX-BSP-Display-Rotation-Fix-issues-about-the-or.patch`
+```java
+--- a/quickstep/src/com/android/quickstep/util/RecentsOrientedState.java
++++ b/quickstep/src/com/android/quickstep/util/RecentsOrientedState.java
+-    private @SurfaceRotation int mRecentsActivityRotation = ROTATION_0;
++    private @SurfaceRotation int mRecentsActivityRotation = ROTATION_90;
+     // ...
+-            return ROTATION_0;
++            return ROTATION_90;
+```
+
+#### 框架 (啟用四向旋轉)
+**Patch:** `frameworks/base/0003-BUG-FIX-BSP-Display-Rotation-Fix-the-issue-that-auto.patch`
+```xml
+--- a/core/res/res/values/config.xml
++++ b/core/res/res/values/config.xml
+-    <bool name="config_allowAllRotations">false</bool>
++    <bool name="config_allowAllRotations">true</bool>
+```
+
+#### GMS 設定精靈 (SUW)
+**Patch:** `vendor/partner_gms/0001-Update-BSP-Display-Rotation-Fixed-display-flipping-i.patch`
+```makefile
+--- a/products/gms.mk
++++ b/products/gms.mk
+-    ro.setupwizard.rotation_locked=true \
++    ro.setupwizard.rotation_locked=false \
+```
+
+### 8.4 應用層級修正
+#### SnapdragonCamera (圖示旋轉補償)
+**Patch:** `vendor/codeaurora/packages/apps/SnapdragonCamera/0001-UPDATE-AP-DISPLAY-Rotation-Rotate-90-degree-for-came.patch`
+```java
+--- a/src/com/android/camera/CameraActivity.java
++++ b/src/com/android/camera/CameraActivity.java
++            // thorpe: 因 ARCore Patch 需要，將方向補償 90 度
++            orientation = (orientation + 90) % 360;
+// ...
+--- a/src/com/android/camera/util/CameraUtil.java
++++ b/src/com/android/camera/util/CameraUtil.java
++            // thorpe: 因 ARCore Patch 需要，JPEG 旋轉減 90 度
++            orientation = (orientation - 90) % 360;
+```
+
+#### SnapdragonCamera (橫向鎖定)
+**Patch:** `vendor/codeaurora/packages/apps/SnapdragonCamera/0002-UPDATE-AP-DISPLAY-Rotation-Rotate-90-degree-for-came.patch`
+```xml
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+-            android:screenOrientation="unspecified"
++            android:screenOrientation="landscape"
+```
+```java
+--- a/src/com/android/camera/CameraActivity.java
++++ b/src/com/android/camera/CameraActivity.java
++        Log.d(TAG, "Set orientation default to landscape.");
++        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+```
+
+### 8.5 感測器校正微調
+#### 電子羅盤校正矩陣
+**Patch:** `vendor/qcom/proprietary/0004-UPDATE-BSP-E-COMPASS-fine-tune-ist8306-E-compass-cor.patch`
+```json
+--- a/sensors-see/registry/config/lahaina/kodiak_idp_ist8306_0.json
++++ b/sensors-see/registry/config/lahaina/kodiak_idp_ist8306_0.json
+     ".corr_mat":{
+-          "0_0":{ "data": "0.93875351" },
++          "0_0":{ "data": "1.006126579" },
+          // ... (完整校正矩陣已依旋轉後方向重新校準)
+     }
+```
+
+## 9. 結論
+透過將架構重新對齊為 **「直屏基準 + 預設橫屏 (Portrait Baseline + Landscape Default)」** 模式，我們成功解決了 ARCore 90 度旋轉問題，同時完整保留了產品的橫向特色。這確保了裝置與 Android 生態系統的全面相容性，並支援未來的 ARCore 更新。
